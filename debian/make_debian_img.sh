@@ -13,8 +13,8 @@ set -e
 main() {
     # file media is sized with the number between 'mmc_' and '.img'
     #   use 'm' for 1024^2 and 'g' for 1024^3
-    local media='mmc_2g.img' # or block device '/dev/sdX'
-    local deb_dist='bookworm'
+    local deb_dist='bullseye'
+    local media="mmc_2g_${deb_dist}.img" # or block device '/dev/sdX'
     local hostname='nanopi5-arm64'
     local acct_uid='debian'
     local acct_pass='debian'
@@ -111,6 +111,11 @@ main() {
     pkgs="$pkgs, $extra_pkgs"
     debootstrap --arch arm64 --include "$pkgs" "$deb_dist" "$mountpt" 'https://deb.debian.org/debian/'
 
+    print_hdr "install linux-image from bookworm"
+    echo "$(file_apt_sources bookworm)\n" >> "$mountpt/etc/apt/sources.list"
+    chroot "$mountpt" /usr/bin/apt -y update
+    chroot "$mountpt" /usr/bin/apt -y install -t bookworm linux-image-arm64
+
     umount "$mountpt/var/cache"
     umount "$mountpt/var/lib/apt/lists"
 
@@ -156,7 +161,7 @@ main() {
 
     print_hdr "creating user account"
     chroot "$mountpt" /usr/sbin/useradd -m $acct_uid -s /bin/bash
-    chroot "$mountpt" /bin/sh -c "/usr/bin/echo $acct_uid:$acct_pass | /usr/sbin/chpasswd -c YESCRYPT"
+    chroot "$mountpt" /bin/sh -c "/usr/bin/echo $acct_uid:$acct_pass | /usr/sbin/chpasswd -c SHA512"
     chroot "$mountpt" /usr/bin/passwd -e $acct_uid
     (umask 377 && echo "$acct_uid ALL=(ALL) NOPASSWD: ALL" > "$mountpt/etc/sudoers.d/$acct_uid")
 
@@ -194,7 +199,7 @@ main() {
 make_image_file() {
     local filename="$1"
     rm -f "$filename"*
-    local size="$(echo "$filename" | sed -rn 's/.*mmc_([[:digit:]]+[m|g])\.img$/\1/p')"
+    local size="$(echo "$filename" | sed -rn 's/.*mmc_([[:digit:]]+[m|g])_.*\.img$/\1/p')"
     local bytes="$(echo "$size" | sed -e 's/g/ << 30/' -e 's/m/ << 20/')"
     dd bs=64K count=$(($bytes >> 16)) if=/dev/zero of="$filename" status=progress
 }
