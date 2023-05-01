@@ -122,7 +122,7 @@ main() {
     umount "$mountpt/var/lib/apt/lists"
 
     print_hdr "configuring files"
-    echo "$(file_apt_sources $deb_dist)\n" > "$mountpt/etc/apt/sources.list"
+    #echo "$(file_apt_sources $deb_dist)\n" > "$mountpt/etc/apt/sources.list"
     #echo "$(file_locale_cfg)\n" > "$mountpt/etc/default/locale"
 
     # disable sshd until after keys are regenerated on first boot
@@ -130,8 +130,8 @@ main() {
     #rm -f "$mountpt/etc/systemd/system/multi-user.target.wants/ssh.service"
 
     # hostname
-    echo $hostname > "$mountpt/etc/hostname"
-    sed -i "s/127.0.0.1\tlocalhost/127.0.0.1\tlocalhost\n127.0.1.1\t$hostname/" "$mountpt/etc/hosts"
+    #echo $hostname > "$mountpt/etc/hostname"
+    #sed -i "s/127.0.0.1\tlocalhost/127.0.0.1\tlocalhost\n127.0.1.1\t$hostname/" "$mountpt/etc/hosts"
 
     # enable ll alias
     #sed -i '/alias.ll=/s/^#*\s*//' "$mountpt/etc/skel/.bashrc"
@@ -148,7 +148,7 @@ main() {
     echo "[Match]\nPath=platform-3c0400000.pcie-pci-0001:01:00.0\n[Link]\nName=lan2\n" > "$mountpt/etc/systemd/network/10-name-lan2.link"
 
     # locales to generate
-    echo 'en_US.UTF-8 UTF-8' > "$mountpt/etc/locale.gen"
+    echo 'en_US.UTF-8 UTF-8' >> "$mountpt/etc/locale.gen"
 
     # cloud-init: use NoCloud as DataSource
     echo 'datasource_list: [ NoCloud, None ]' > "$mountpt/etc/cloud/cloud.cfg.d/10-nocloud-only.cfg"
