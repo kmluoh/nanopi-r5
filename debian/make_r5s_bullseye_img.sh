@@ -52,10 +52,8 @@ main() {
     local lfw=$(download "$cache" 'https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-20230210.tar.xz')
     local lfwsha='6e3d9e8d52cffc4ec0dbe8533a8445328e0524a20f159a5b61c2706f983ce38a'
     # device tree & uboot
-    #local dtbc=$(download "$cache" 'https://github.com/inindev/nanopi-r5/releases/download/v12-rc3/rk3568-nanopi-r5c.dtb')
-#    local dtbc='../dtb/rk3568-nanopi-r5c.dtb'
     local dtb=$(download "$cache" "https://github.com/inindev/nanopi-r5/releases/download/v12-rc3/rk3568-nanopi-${board}.dtb")
-#    local dtbs='../dtb/rk3568-nanopi-r5s.dtb'
+#    local dtb='../dtb/rk3568-nanopi-r5s.dtb'
     local uboot_spl=$(download "$cache" 'https://github.com/inindev/nanopi-r5/releases/download/v12-rc3/idbloader.img')
 #    local uboot_spl='../uboot/idbloader.img'
     local uboot_itb=$(download "$cache" 'https://github.com/inindev/nanopi-r5/releases/download/v12-rc3/u-boot.itb')
@@ -65,11 +63,6 @@ main() {
         echo "invalid hash for linux firmware: $lfw"
         exit 5
     fi
-
-    #if [ ! -f "$dtbc" ]; then
-    #    echo "unable to fetch device tree binary: $dtbc"
-    #    exit 4
-    #fi
 
     if [ ! -f "$dtb" ]; then
         echo "unable to fetch device tree binary: $dtb"
@@ -92,7 +85,7 @@ main() {
     fi
 
     print_hdr "partitioning media"
-    parition_media "$media"
+    partition_media "$media"
 
     print_hdr "formatting media"
     format_media "$media"
@@ -121,24 +114,6 @@ main() {
     umount "$mountpt/var/cache"
     umount "$mountpt/var/lib/apt/lists"
 
-    print_hdr "configuring files"
-    #echo "$(file_apt_sources $deb_dist)\n" > "$mountpt/etc/apt/sources.list"
-    #echo "$(file_locale_cfg)\n" > "$mountpt/etc/default/locale"
-
-    # disable sshd until after keys are regenerated on first boot
-    #rm -f "$mountpt/etc/systemd/system/sshd.service"
-    #rm -f "$mountpt/etc/systemd/system/multi-user.target.wants/ssh.service"
-
-    # hostname
-    #echo $hostname > "$mountpt/etc/hostname"
-    #sed -i "s/127.0.0.1\tlocalhost/127.0.0.1\tlocalhost\n127.0.1.1\t$hostname/" "$mountpt/etc/hosts"
-
-    # enable ll alias
-    #sed -i '/alias.ll=/s/^#*\s*//' "$mountpt/etc/skel/.bashrc"
-    #sed -i '/export.LS_OPTIONS/s/^#*\s*//' "$mountpt/root/.bashrc"
-    #sed -i '/eval.*dircolors/s/^#*\s*//' "$mountpt/root/.bashrc"
-    #sed -i '/alias.l.=/s/^#*\s*//' "$mountpt/root/.bashrc"
-
     # motd
     [ -f "../etc/motd-${board}" ] && cp -f "../etc/motd-${board}" "$mountpt/etc/motd"
 
@@ -159,9 +134,6 @@ main() {
     mkimage -A arm64 -O linux -T script -C none -n 'u-boot boot script' -d "$mountpt/boot/boot.txt" "$mountpt/boot/boot.scr"
     echo "$(script_mkscr_sh)\n" > "$mountpt/boot/mkscr.sh"
     chmod 754 "$mountpt/boot/mkscr.sh"
-    #install -m 644 "$dtbc" "$mountpt/boot"
-    #install -m 644 "$dtbs" "$mountpt/boot"
-    #ln -sf $(basename "$dtbc") "$mountpt/boot/dtb"
     install -m 644 "$dtb" "$mountpt/boot/dtb"
 
     print_hdr "installing firmware"
@@ -169,18 +141,8 @@ main() {
     local lfwn=$(basename "$lfw")
     tar -C "$mountpt/lib/firmware" --strip-components=1 --wildcards -xavf "$lfw" "${lfwn%%.*}/rockchip" "${lfwn%%.*}/rtl_nic"
 
-    #print_hdr "installing rootfs expansion script to /etc/rc.local"
-    #echo "$(script_rc_local)\n" > "$mountpt/etc/rc.local"
-    #chmod 754 "$mountpt/etc/rc.local"
-
-    #print_hdr "remove root password"
+    print_hdr "remove root password"
     chroot "$mountpt" /usr/bin/passwd -d root
-
-    #print_hdr "creating user account"
-    #chroot "$mountpt" /usr/sbin/useradd -m $acct_uid -s /bin/bash
-    #chroot "$mountpt" /bin/sh -c "/usr/bin/echo $acct_uid:$acct_pass | /usr/sbin/chpasswd -c SHA512"
-    #chroot "$mountpt" /usr/bin/passwd -e $acct_uid
-    #(umask 377 && echo "$acct_uid ALL=(ALL) NOPASSWD: ALL" > "$mountpt/etc/sudoers.d/$acct_uid")
 
     # when compressing, reduce entropy in free space to enhance compression
     if $compress; then
@@ -221,16 +183,14 @@ make_image_file() {
     dd bs=64K count=$(($bytes >> 16)) if=/dev/zero of="$filename" status=progress
 }
 
-parition_media() {
+partition_media() {
     local media="$1"
 
     # partition with gpt
-    cat <<-EOF | sfdisk "$media"
-	label: gpt
-	unit: sectors
-	first-lba: 2048
-	part1: start=32768, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name=rootfs
-	EOF
+    parted -a optimal -s -- "$media" \
+	    unit MiB \
+	    mklabel gpt \
+	    mkpart rootfs ext4 16 100%
     sync
 }
 
@@ -378,125 +338,6 @@ file_apt_sources() {
 	EOF
 }
 
-file_locale_cfg() {
-    cat <<-EOF
-	LANG="C.UTF-8"
-	LANGUAGE=
-	LC_CTYPE="C.UTF-8"
-	LC_NUMERIC="C.UTF-8"
-	LC_TIME="C.UTF-8"
-	LC_COLLATE="C.UTF-8"
-	LC_MONETARY="C.UTF-8"
-	LC_MESSAGES="C.UTF-8"
-	LC_PAPER="C.UTF-8"
-	LC_NAME="C.UTF-8"
-	LC_ADDRESS="C.UTF-8"
-	LC_TELEPHONE="C.UTF-8"
-	LC_MEASUREMENT="C.UTF-8"
-	LC_IDENTIFICATION="C.UTF-8"
-	LC_ALL=
-	EOF
-}
-
-script_rc_local() {
-    cat <<-EOF2
-	#!/bin/sh
-
-	set -e
-
-	this=\$(realpath \$0)
-	perm=\$(stat -c %a \$this)
-
-	if [ 774 -eq \$perm ]; then
-	    # expand fs
-	    resize2fs \$(findmnt / -o source -n)
-	    rm "\$this"
-	else
-	    is_r5c=\$([ -d '/sys/devices/platform/3c0800000.pcie/pci0002:00/0002:00:00.0/0002:01:00.0/net' ] || echo false && echo true)
-	    macd=\$(xxd -s250 -l6 -p /dev/urandom)
-
-	    if [ -d '/sys/devices/platform/3c0800000.pcie/pci0002:00/0002:00:00.0/0002:01:00.0/net' ]; then
-		# r5c
-		rm -f /boot/rk3568-nanopi-r5s.dtb
-		echo "[Match]\\nPath=platform-3c0400000.pcie-pci-0001:01:00.0\\n[Link]\\nName=lan0\\nMACAddress=\$(printf '%012x' \$((0x\$macd & 0xfefffffffffc | 0x200000000000)) | sed 's/../&:/g;s/:\$//')" > /etc/systemd/network/10-name-\lan0.link
-		echo "[Match]\\nPath=platform-3c0800000.pcie-pci-0002:01:00.0\\n[Link]\\nName=wan0\\nMACAddress=\$(printf '%012x' \$((0x\$macd & 0xfefffffffffc | 0x200000000001)) | sed 's/../&:/g;s/:\$//')" > /etc/systemd/network/10-name-\wan0.link
-	        cat <<-EOF > /etc/network/interfaces
-			# interfaces(5) file used by ifup(8) and ifdown(8)
-			# Include files from /etc/network/interfaces.d:
-			source /etc/network/interfaces.d/*
-
-			# loopback network interface
-			auto lo
-			iface lo inet loopback
-
-			# lan network interface
-			auto lan0
-			iface lan0 inet static
-			    address 192.168.1.1/24
-			    broadcast 192.168.1.255
-
-			# wan network interface
-			auto wan0
-			iface wan0 inet dhcp
-
-			EOF
-	    else
-		# r5s
-		ln -sf 'rk3568-nanopi-r5s.dtb' '/boot/dtb'
-		rm -f /boot/rk3568-nanopi-r5c.dtb
-		echo "[Match]\\nPath=platform-3c0000000.pcie-pci-0000:01:00.0\\n[Link]\\nName=lan1\\nMACAddress=\$(printf '%012x' \$((0x\$macd & 0xfefffffffffc | 0x200000000000)) | sed 's/../&:/g;s/:\$//')" > /etc/systemd/network/10-name-\lan1.link
-		echo "[Match]\\nPath=platform-3c0400000.pcie-pci-0001:01:00.0\\n[Link]\\nName=lan2\\nMACAddress=\$(printf '%012x' \$((0x\$macd & 0xfefffffffffc | 0x200000000001)) | sed 's/../&:/g;s/:\$//')" > /etc/systemd/network/10-name-\lan2.link
-		echo "[Match]\\nPath=platform-fe2a0000.ethernet\\n[Link]\\nName=wan0\\nMACAddress=\$(printf '%012x' \$((0x\$macd & 0xfefffffffffc | 0x200000000002)) | sed 's/../&:/g;s/:\$//')" > /etc/systemd/network/10-name-\wan0.link
-	        cat <<-EOF > /etc/network/interfaces
-			# interfaces(5) file used by ifup(8) and ifdown(8)
-			# Include files from /etc/network/interfaces.d:
-			source /etc/network/interfaces.d/*
-
-			# loopback network interface
-			auto lo
-			iface lo inet loopback
-
-			# lan1 network interface
-			auto lan1
-			iface lan1 inet static
-			    address 192.168.1.1/24
-			    broadcast 192.168.1.255
-
-			# lan2 network interface
-			auto lan2
-			iface lan2 inet static
-			    address 192.168.2.1/24
-			    broadcast 192.168.2.255
-
-			# wan network interface
-			auto wan0
-			iface wan0 inet dhcp
-
-			EOF
-	    fi
-
-	    # regen ssh keys
-	    rm -f /etc/ssh/ssh_host_*
-	    dpkg-reconfigure openssh-server
-	    systemctl enable ssh.service
-
-	    # expand root parition
-	    rp=\$(findmnt / -o source -n)
-	    rpn=\$(echo "\$rp" | grep -o '[[:digit:]]*\$')
-	    rd="/dev/\$(lsblk -no pkname \$rp)"
-	    echo ', +' | sfdisk -f -N \$rpn \$rd
-
-	    # change uuid on partition
-	    uuid=\$(cat /proc/sys/kernel/random/uuid)
-	    sfdisk --part-uuid \$rd \$rpn \$uuid
-
-	    # setup for expand fs
-	    chmod 774 "\$this"
-	    reboot
-	fi
-	EOF2
-}
-
 script_boot_txt() {
     local no_ipv6="$($1 && echo ' ipv6.disable=1')"
 
@@ -567,6 +408,7 @@ on_exit() {
         fi
     fi
 }
+
 mountpt='rootfs'
 trap on_exit EXIT INT QUIT ABRT TERM
 
