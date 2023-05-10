@@ -6,7 +6,7 @@
 set -e
 
 img="$1"
-id="$2"
+meta_data_yml="$2"
 media="$3"
 
 dd if=${img} of=${media} bs=4M status=progress
@@ -17,7 +17,7 @@ resize2fs ${media}1
 mkfs.vfat -F 32 -n CIDATA ${media}2
 tmp=$(mktemp -u)
 [ ! -f ${tmp}.img ] || rm -f ${tmp}.img
-cloud-localds -v ${tmp}.img user-data.yaml meta-data-${id}.yaml
+cloud-localds -v ${tmp}.img user-data.yaml ${meta_data_yml}
 [ ! -d ${tmp} ] || rm -rf ${tmp}
 mkdir ${tmp}
 mount ${tmp}.img ${tmp}
