@@ -28,6 +28,9 @@ idx=0
 for f in $(ls /etc/systemd/network/*.link); do
 	gen_mac ${oui} ${base} ${idx} $f
 	source <(grep = $f)
+	up=$(cat /sys/class/net/${Name}/operstate)
+	[ "${up}" != "up" ] || ip link set dev ${Name} down
 	ip link set dev ${Name} address ${MACAddress}
+	[ "${up}" != "up" ] || ip link set dev ${Name} up
 	idx=$((${idx} + 1))
 done

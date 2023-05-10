@@ -106,10 +106,12 @@ main() {
     pkgs="$pkgs, $extra_pkgs"
     debootstrap --arch arm64 --include "$pkgs" "$deb_dist" "$mountpt" 'https://deb.debian.org/debian/'
 
-    print_hdr "install linux-image from bookworm"
-    echo "$(file_apt_sources bookworm)\n" >> "$mountpt/etc/apt/sources.list"
+    dist=bookworm
+    print_hdr "install linux-image from ${dist}"
+    echo "$(file_apt_sources ${dist})\n" > "$mountpt/etc/apt/sources.list.d/${dist}.list"
     chroot "$mountpt" /usr/bin/apt -y update
-    chroot "$mountpt" /usr/bin/apt -y install -t bookworm --no-install-recommends linux-image-arm64
+    chroot "$mountpt" /usr/bin/apt -y install -t ${dist} --no-install-recommends linux-image-arm64
+    rm -f "$mountpt/etc/apt/sources.list.d/${dist}.list"
 
     umount "$mountpt/var/cache"
     umount "$mountpt/var/lib/apt/lists"
@@ -127,6 +129,9 @@ main() {
 
     # populate interfaces
     echo "$(script_etc_interfaces)" >> "$mountpt/etc/network/interfaces"
+
+    # populate apt sources list
+    echo "$(file_apt_sources ${deb_dist})\n" > "$mountpt/etc/apt/sources.list"
 
     # locales to generate
     echo 'en_US.UTF-8 UTF-8' >> "$mountpt/etc/locale.gen"
