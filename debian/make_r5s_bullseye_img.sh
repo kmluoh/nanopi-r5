@@ -20,7 +20,7 @@ main() {
     local acct_uid='debian'
     local acct_pass='debian'
     local disable_ipv6=true
-    local extra_pkgs='cloud-guest-utils, cloud-init, curl, pciutils, python3-cffi-backend, sudo, u-boot-tools, uuid, unzip, wget, xz-utils, zip, zstd'
+    local extra_pkgs='cloud-guest-utils, cloud-init, curl, ifupdown2, gpg, gpg-agent, pciutils, python3-cffi-backend, sudo, u-boot-tools, uuid, unzip, wget, xz-utils, zip, zstd'
 
     is_param 'clean' $@ && rm -rf cache.${board}.${deb_dist}* && rm mmc_2g_${board}_${deb_dist}.img* && exit 0
 
