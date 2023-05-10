@@ -6,7 +6,8 @@
 set -e
 
 img="$1"
-media="$2"
+id="$2"
+media="$3"
 
 dd if=${img} of=${media} bs=4M status=progress
 growpart ${media} 1
@@ -16,7 +17,7 @@ resize2fs ${media}1
 mkfs.vfat -F 32 -n CIDATA ${media}2
 tmp=$(mktemp -u)
 [ ! -f ${tmp}.img ] || rm -f ${tmp}.img
-cloud-localds -v ${tmp}.img user-data.yaml meta-data.yaml
+cloud-localds -v ${tmp}.img user-data.yaml meta-data-${id}.yaml
 [ ! -d ${tmp} ] || rm -rf ${tmp}
 mkdir ${tmp}
 mount ${tmp}.img ${tmp}

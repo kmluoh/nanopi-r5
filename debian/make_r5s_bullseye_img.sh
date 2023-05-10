@@ -20,7 +20,7 @@ main() {
     local acct_uid='debian'
     local acct_pass='debian'
     local disable_ipv6=true
-    local extra_pkgs='cloud-guest-utils, cloud-init, curl, pciutils, python3-cffi-backend, sudo, u-boot-tools, unzip, wget, xxd, xz-utils, zip, zstd'
+    local extra_pkgs='cloud-guest-utils, cloud-init, curl, pciutils, python3-cffi-backend, sudo, u-boot-tools, uuid, unzip, wget, xz-utils, zip, zstd'
 
     is_param 'clean' $@ && rm -rf cache.${board}.${deb_dist}* && rm mmc_2g_${board}_${deb_dist}.img* && exit 0
 
@@ -118,16 +118,22 @@ main() {
     [ -f "../etc/motd-${board}" ] && cp -f "../etc/motd-${board}" "$mountpt/etc/motd"
 
     # rename interfaces
-    echo "[Match]\nPath=platform-fe2a0000.ethernet\n[Link]\nName=wan\n" > "$mountpt/etc/systemd/network/10-name-wan.link"
-    echo "[Match]\nPath=platform-3c0000000.pcie-pci-0000:01:00.0\n[Link]\nName=lan1\n" > "$mountpt/etc/systemd/network/10-name-lan1.link"
-    echo "[Match]\nPath=platform-3c0400000.pcie-pci-0001:01:00.0\n[Link]\nName=lan2\n" > "$mountpt/etc/systemd/network/10-name-lan2.link"
+    echo "[Match]\nPath=platform-fe2a0000.ethernet\n[Link]\nName=wan" > "$mountpt/etc/systemd/network/10-name-wan.link"
+    echo "[Match]\nPath=platform-3c0000000.pcie-pci-0000:01:00.0\n[Link]\nName=lan1" > "$mountpt/etc/systemd/network/10-name-lan1.link"
+    echo "[Match]\nPath=platform-3c0400000.pcie-pci-0001:01:00.0\n[Link]\nName=lan2" > "$mountpt/etc/systemd/network/10-name-lan2.link"
+
+    # copy script to generate mac address
+    cp -f gen_mac_addr.sh "$mountpt/usr/sbin/gen_mac_addr.sh"
+
+    # populate interfaces
+    echo "$(script_etc_interfaces)" >> "$mountpt/etc/network/interfaces"
 
     # locales to generate
     echo 'en_US.UTF-8 UTF-8' >> "$mountpt/etc/locale.gen"
 
     # cloud-init: use NoCloud as DataSource
     echo 'datasource_list: [ NoCloud, None ]' > "$mountpt/etc/cloud/cloud.cfg.d/10-nocloud-only.cfg"
-    #echo 'network: {config: disabled}' > "$mountpt/etc/cloud/cloud.cfg.d/20-disable-network-config.cfg"
+    echo 'network: {config: disabled}' > "$mountpt/etc/cloud/cloud.cfg.d/20-disable-network-config.cfg"
 
     # setup /boot
     echo "$(script_boot_txt $disable_ipv6)\n" > "$mountpt/boot/boot.txt"
@@ -141,8 +147,8 @@ main() {
     local lfwn=$(basename "$lfw")
     tar -C "$mountpt/lib/firmware" --strip-components=1 --wildcards -xavf "$lfw" "${lfwn%%.*}/rockchip" "${lfwn%%.*}/rtl_nic"
 
-    print_hdr "remove root password"
-    chroot "$mountpt" /usr/bin/passwd -d root
+    #print_hdr "remove root password"
+    #chroot "$mountpt" /usr/bin/passwd -d root
 
     # when compressing, reduce entropy in free space to enhance compression
     if $compress; then
@@ -335,6 +341,17 @@ file_apt_sources() {
 
 	deb http://deb.debian.org/debian $deb_dist-updates main contrib non-free
 	#deb-src http://deb.debian.org/debian $deb_dist-updates main contrib non-free
+	EOF
+}
+
+script_etc_interfaces() {
+    cat <<-EOF
+
+	auto lo
+	iface lo inet loopback
+
+	auto wan
+	iface wan inet dhcp
 	EOF
 }
 
