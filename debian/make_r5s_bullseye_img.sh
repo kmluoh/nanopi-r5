@@ -52,11 +52,11 @@ main() {
     local lfw=$(download "$cache" 'https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-20230210.tar.xz')
     local lfwsha='6e3d9e8d52cffc4ec0dbe8533a8445328e0524a20f159a5b61c2706f983ce38a'
     # device tree & uboot
-    local dtb=$(download "$cache" "https://github.com/inindev/nanopi-r5/releases/download/v12-rc3/rk3568-nanopi-${board}.dtb")
+    local dtb=$(download "$cache" "https://github.com/inindev/nanopi-r5/releases/download/v12-rc4/rk3568-nanopi-${board}.dtb")
 #    local dtb='../dtb/rk3568-nanopi-r5s.dtb'
-    local uboot_spl=$(download "$cache" 'https://github.com/inindev/nanopi-r5/releases/download/v12-rc3/idbloader.img')
+    local uboot_spl=$(download "$cache" 'https://github.com/inindev/nanopi-r5/releases/download/v12-rc4/idbloader.img')
 #    local uboot_spl='../uboot/idbloader.img'
-    local uboot_itb=$(download "$cache" 'https://github.com/inindev/nanopi-r5/releases/download/v12-rc3/u-boot.itb')
+    local uboot_itb=$(download "$cache" 'https://github.com/inindev/nanopi-r5/releases/download/v12-rc4/u-boot.itb')
 #    local uboot_itb='../uboot/u-boot.itb'
 
     if [ "$lfwsha" != $(sha256sum "$lfw" | cut -c1-64) ]; then
