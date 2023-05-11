@@ -1,0 +1,20 @@
+#cloud-config
+bootcmd:
+  - [cloud-init-per, once, gen_mac_addr, /usr/sbin/gen_mac_addr.sh]
+chpasswd:
+  list:
+    - nondefault:nondefaultpassword
+  expire: true
+locale: en_US.UTF-8
+runcmd:
+  - 'echo "127.0.1.1\t$(hostname)" >> /etc/hosts'
+ssh_pwauth: false
+timezone: US/Pacific
+users:
+  - name: nondefault
+    gecos: Non Default User
+    groups: [adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video]
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh-authorized-keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDxW/VrfQtT/mLbgno8n89LUWJmReNdFeJlRQRCjGKOp someone@somewhere
