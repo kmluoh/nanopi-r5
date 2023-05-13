@@ -166,6 +166,9 @@ main() {
     umount "$mountpt"
     rm -rf "$mountpt"
 
+    print_hdr "prepare cloud-init"
+    prepare_cloudinit "$media" "cloud-init/user-data-default.yaml"
+
     print_hdr "installing u-boot"
     dd bs=4K seek=8 if="$uboot_spl" of="$media" conv=notrunc
     dd bs=4K seek=2048 if="$uboot_itb" of="$media" conv=notrunc,fsync
@@ -201,7 +204,9 @@ partition_media() {
     parted -a optimal -s -- "$media" \
 	    unit MiB \
 	    mklabel gpt \
-	    mkpart rootfs ext4 16 100%
+	    mkpart CIDATA fat32 16 48 \
+	    mkpart rootfs ext4 48 100% \
+	    set 2 boot on
     sync
 }
 
@@ -211,11 +216,12 @@ format_media() {
     # create ext4 filesystem
     if [ -b "$media" ]; then
         local part1="/dev/$(lsblk -no kname "$media" | grep '.*p1$')"
-        mkfs.ext4 "$part1" && sync
+        local part2="/dev/$(lsblk -no kname "$media" | grep '.*p2$')"
+        mkfs.vfat -F 32 -n CIDATA "$part1" && mkfs.ext4 "$part2" && sync
     else
         local lodev="$(losetup -f)"
         losetup -P "$lodev" "$media" && sync
-        mkfs.ext4 "${lodev}p1" && sync
+        mkfs.vfat -F 32 -n CIDATA "${lodev}p1" && mkfs.ext4 "${lodev}p2" && sync
         losetup -d "$lodev" && sync
     fi
 }
@@ -233,10 +239,10 @@ mount_media() {
     fi
 
     if [ -b "$media" ]; then
-        local part1="/dev/$(lsblk -no kname "$media" | grep '.*p1$')"
-        mount -n "$part1" "$mountpt"
+        local part2="/dev/$(lsblk -no kname "$media" | grep '.*p2$')"
+        mount -n "$part2" "$mountpt"
     elif [ -f "$media" ]; then
-        mount -n -o loop,offset=16M "$media" "$mountpt"
+        mount -n -o loop,offset=48M "$media" "$mountpt"
     else
         echo "file not found: $media"
         exit 4
@@ -429,6 +435,48 @@ on_exit() {
             rm -rf "$mountpt"
         fi
     fi
+}
+
+prepare_cloudinit() {
+    local media="$1"
+    local udyml="$2"
+
+    # mount 1st partition of media
+    local cidata=$(mktemp -u)
+    [ ! -d ${cidata} ] || rm -rf ${cidata}
+    mkdir ${cidata}
+    if [ -b "$media" ]; then
+        local part1="/dev/$(lsblk -no kname "$media" | grep '.*p1$')"
+        mount -n "$part1" "${cidata}"
+    elif [ -f "$media" ]; then
+        mount -n -o loop,offset=16M "$media" "${cidata}"
+    else
+        echo "file not found: $media"
+        exit 4
+    fi
+
+    local mdyml=$(mktemp -u)
+    local myuuid=$(uuid -v 1)
+    echo "instance-id: ${myuuid}" > "${mdyml}"
+
+    # generate an iso image with user-data and meta-data
+    local tmp=$(mktemp -u)
+    [ ! -f ${tmp}.img ] || rm -f ${tmp}.img
+    cloud-localds -v ${tmp}.img ${udyml} ${mdyml}
+    rm -f "${mdyml}"
+
+    # mount iso image with user-data and meta-data
+    [ ! -d ${tmp} ] || rm -rf ${tmp}
+    mkdir ${tmp}
+    mount ${tmp}.img ${tmp}
+
+    # copy user-data and meta-data from iso image to 2nd partition of media
+    cp ${tmp}/meta-data ${cidata}
+    cp ${tmp}/user-data ${cidata}
+
+    # cleanup
+    umount ${cidata} ${tmp}
+    rm -rf ${cidata} ${tmp} ${tmp}.img
 }
 
 mountpt='rootfs'
