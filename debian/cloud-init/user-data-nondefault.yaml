@@ -3,7 +3,7 @@ bootcmd:
   - [cloud-init-per, once, gen_mac_addr, /usr/sbin/gen_mac_addr.sh]
 chpasswd:
   list:
-    - nondefault:nondefaultpassword
+    - nondefault:nondefault
   expire: true
 locale: en_US.UTF-8
 runcmd:

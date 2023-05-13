@@ -2,7 +2,7 @@
 bootcmd:
   - [cloud-init-per, once, gen_mac_addr, /usr/sbin/gen_mac_addr.sh]
 locale: en_US.UTF-8
-password: defaultpassword
+password: debian
 runcmd:
   - 'echo "127.0.1.1\t$(hostname)" >> /etc/hosts'
 timezone: US/Pacific
