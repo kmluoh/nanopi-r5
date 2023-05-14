@@ -204,8 +204,8 @@ partition_media() {
     parted -a optimal -s -- "$media" \
 	    unit MiB \
 	    mklabel gpt \
-	    mkpart CIDATA fat32 16 48 \
-	    mkpart rootfs ext4 48 100% \
+	    mkpart CIDATA fat16 16 32 \
+	    mkpart rootfs ext4 32 100% \
 	    set 2 boot on
     sync
 }
@@ -217,11 +217,11 @@ format_media() {
     if [ -b "$media" ]; then
         local part1="/dev/$(lsblk -no kname "$media" | grep '.*p1$')"
         local part2="/dev/$(lsblk -no kname "$media" | grep '.*p2$')"
-        mkfs.vfat -F 32 -n CIDATA "$part1" && mkfs.ext4 "$part2" && sync
+        mkfs.vfat -n CIDATA "$part1" && mkfs.ext4 "$part2" && sync
     else
         local lodev="$(losetup -f)"
         losetup -P "$lodev" "$media" && sync
-        mkfs.vfat -F 32 -n CIDATA "${lodev}p1" && mkfs.ext4 "${lodev}p2" && sync
+        mkfs.vfat -n CIDATA "${lodev}p1" && mkfs.ext4 "${lodev}p2" && sync
         losetup -d "$lodev" && sync
     fi
 }
@@ -242,7 +242,7 @@ mount_media() {
         local part2="/dev/$(lsblk -no kname "$media" | grep '.*p2$')"
         mount -n "$part2" "$mountpt"
     elif [ -f "$media" ]; then
-        mount -n -o loop,offset=48M "$media" "$mountpt"
+        mount -n -o loop,offset=32M "$media" "$mountpt"
     else
         echo "file not found: $media"
         exit 4
